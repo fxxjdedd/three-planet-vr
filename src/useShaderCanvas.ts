@@ -30,8 +30,8 @@ export function useShaderCanvas(canvas: HTMLCanvasElement, materialOptions?: Sha
     plane.setAttribute('position', planeVertex);
 
     const globalUniforms = {
-        u_time: { value: Date.now() / 1000 },
-        u_resolution: { value: [window.innerWidth, window.innerHeight] },
+        uTime: { value: Date.now() / 1000 },
+        uResolution: { value: [window.innerWidth, window.innerHeight] },
     };
     const shaderMaterial = new ShaderMaterial({
         ...materialOptions,
@@ -53,13 +53,13 @@ export function useShaderCanvas(canvas: HTMLCanvasElement, materialOptions?: Sha
     function onWindowResize() {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
-        globalUniforms.u_resolution.value = [window.innerWidth, window.innerHeight];
+        globalUniforms.uResolution.value = [window.innerWidth, window.innerHeight];
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
     function render() {
-        globalUniforms.u_time.value -= Date.now() / 1000;
-        globalUniforms.u_time.value *= -1;
+        globalUniforms.uTime.value -= Date.now() / 1000;
+        globalUniforms.uTime.value *= -1;
         renderer.render(scene, camera);
     }
 
