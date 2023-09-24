@@ -23,9 +23,6 @@ uniform sampler3D map;
 // https://stackoverflow.com/questions/34627576/why-did-glsl-change-varying-to-in-out
 in vec2 st;
 
-#define ROTATION_SPEED -.1
-#define PLANET_ROTATION rotateY(uTime * ROTATION_SPEED)
-
 mat3 rotateY(float angle) {
   float c = cos(angle);
   float s = sin(angle);
@@ -119,8 +116,8 @@ vec3 PhongIllumination(vec3 k_a, vec3 k_d, vec3 k_s, vec3 p, vec3 eyePos, float 
     vec3 color = ambientLight * k_a;
     // fbm based color will be wired if we rotate light
     // vec3 lightPos = 5.0 * vec3(sin(t), 0.0, cos(t));
-    vec3 lightPos = vec3(10.0, 10.0, 0.0);
-    vec3 lightIntensity = vec3(0.4, 0.4, 0.4);
+    vec3 lightPos = vec3(1.0, 1.0, 0.0);
+    vec3 lightIntensity = 2.*vec3(0.4, 0.4, 0.4);
     color += PhongContrib(k_d, k_s, p, lightPos, eyePos, lightIntensity, shininess);
     return color;
 }
@@ -128,11 +125,13 @@ vec3 PhongIllumination(vec3 k_a, vec3 k_d, vec3 k_s, vec3 p, vec3 eyePos, float 
 PlanetMaterial Planet(vec3 p) {
     float fbm = FBM(p);
     vec3 color = OCEAN_COLOR;
-    color = mix(color, vec3(1.0), smoothstep(0.5, 0.55, fbm));
+    color = mix(color, vec3(0.35, 0.55, 0.1), smoothstep(0.5, 0.55, fbm));
+    color = mix(color, vec3(0.45, 0.35, 0.23), smoothstep(0.55, 0.6, fbm));
+    color = mix(color, vec3(1.0), smoothstep(0.6, 0.65, fbm));
 
-    float specularFactor = smoothstep(0.55, 0.5, fbm);
+    float specularFactor = smoothstep(0.0, 0.5, fbm);
 
-    return PlanetMaterial(color, specularFactor);
+    return PlanetMaterial(color, 0.5);
 }
 
 void main() {
@@ -151,15 +150,14 @@ void main() {
 
     PlanetMaterial planetMaterial = Planet(p);
 
-    vec3 k_a = vec3(0.3); 
+    vec3 k_a = vec3(0.1); 
     vec3 k_d = planetMaterial.diffuseColor;
-    vec3 k_s = vec3(0.8)*planetMaterial.specularFactor;
-    float shininess = 2.;
+    vec3 k_s = vec3(1.0)*planetMaterial.specularFactor;
+    float shininess = 10.;
 
     // vec3 col = vec3(p.z, pow(p.z, 2.0), pow(p.z, 3.0));
 
     vec3 col = PhongIllumination(k_a, k_d, k_s, p, ro, shininess);
-
 
     gl_FragColor = vec4(col, 1.0);
 }
