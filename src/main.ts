@@ -12,7 +12,7 @@ const { startRenderLoop } = useShaderCanvas(canvas, {
     fragmentShader: fragment,
     uniforms: {
         uPlanetOrigin: { value: [0, 0] },
-        uPlanetRadius: { value: 0.5 },
+        uPlanetRadius: { value: 1.0 },
         map: { value: noiseTexture },
     },
 });
