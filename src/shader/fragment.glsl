@@ -4,7 +4,7 @@ precision highp sampler3D;
 #define Pi 3.14159265359
 #define RAY_MARCHING_STEPS 25.
 #define RAY_MARCHING_MAX_DIST 100.
-#define EPSILON 0.0001
+#define EPSILON 0.001
 #define OCTAVES 6
 #define t uTime * 0.8
 
@@ -36,19 +36,23 @@ float Noise(vec3 p) {
 // https://thebookofshaders.com/13/
 
 float FBM(in vec3 p) {
-    float v = 0.0;
-    float a = 0.5;
-    float f = 1.0;
+    float value = 0.0;
+    float amplitude = 0.5;
+    float frequency = 1.0;
+    float normalization = 0.0;
     for (int i = 0; i < OCTAVES; i++) {
-        v += a * Noise(f * p);
-        f *= 2.0;
-        a *= 0.5;
+        value += amplitude * Noise(frequency * p);
+        normalization += amplitude;
+        frequency *= 2.0;
+        amplitude *= 0.5;
     }
-    return v;
+    // value /= normalization;
+    // value = value * 0.8 + 0.1;
+    // value = pow(value, 3.0);
+    return value;
 }
 
-float SDSphere(vec3 p) {
-    float r = uPlanetRadius;
+float SDSphere(vec3 p, float r) {
     // r += FBM(p);
     return length(p - vec3(uPlanetOrigin, 0.)) - r;
 }
@@ -56,7 +60,8 @@ float SDSphere(vec3 p) {
 float RayMarching(vec3 ro, vec3 rd) {
     float d = 0.; // marching dist
     for (float i = 0.; i < RAY_MARCHING_STEPS; i++) {
-        float dist = SDSphere(ro + rd * d);
+        vec3 p = ro + rd * d;
+        float dist = SDSphere(p, uPlanetRadius);
         if (dist < EPSILON) {
             return d;
         }
@@ -68,11 +73,17 @@ float RayMarching(vec3 ro, vec3 rd) {
     return RAY_MARCHING_MAX_DIST; // return max dist if exceed RAY_MARCHING_STEPS
 }
 
+float DeltaDist(vec3 p1, vec3 p2) {
+    float r1 = uPlanetRadius + FBM(p1);
+    float r2 = uPlanetRadius + FBM(p2);
+    return SDSphere(p1, r1) - SDSphere(p2, r2);
+}
+
 vec3 EstimateNormal(vec3 p) {
     return normalize(vec3(
-        SDSphere(vec3(p.x + EPSILON, p.y, p.z)) - SDSphere(vec3(p.x - EPSILON, p.y, p.z)),
-        SDSphere(vec3(p.x, p.y + EPSILON, p.z)) - SDSphere(vec3(p.x, p.y - EPSILON, p.z)),
-        SDSphere(vec3(p.x, p.y, p.z + EPSILON)) - SDSphere(vec3(p.x, p.y, p.z - EPSILON))
+        DeltaDist(vec3(p.x + EPSILON, p.y, p.z), vec3(p.x - EPSILON, p.y, p.z)),
+        DeltaDist(vec3(p.x, p.y + EPSILON, p.z), vec3(p.x, p.y - EPSILON, p.z)),
+        DeltaDist(vec3(p.x, p.y, p.z + EPSILON), vec3(p.x, p.y, p.z - EPSILON))
     ));
 }
 
@@ -96,9 +107,10 @@ vec3 PhongContrib(vec3 k_d, vec3 k_s, vec3 p, vec3 lightPos, vec3 eyePos, vec3 l
 }
 
 vec3 PhongIllumination(vec3 k_a, vec3 k_d, vec3 k_s, vec3 p, vec3 eyePos, float shininess) {
-    const vec3 ambientLight = 0.5 * vec3(1., 1., 1.);
+    vec3 ambientLight = 0.5 * vec3(1., 1., 1.);
     vec3 color = ambientLight * k_a;
     vec3 lightPos = 5.0 * vec3(sin(t), 0.0, cos(t));
+    // vec3 lightPos = 5.0 * vec3(0.0, 5.0, 1.0);
     float rad = (90. + 60.) / 180. * Pi;
     mat2 rotate = mat2(
         vec2(cos(rad), sin(rad)),
@@ -119,6 +131,7 @@ PlanetMaterial Planet(vec3 p) {
     float specularFactor = smoothstep(0.55, 0.5, fbm);
 
     return PlanetMaterial(color, specularFactor);
+    // return PlanetMaterial(vec3(1.0), 1.0);
 }
 
 void main() {
@@ -138,10 +151,13 @@ void main() {
 
     vec3 k_a = vec3(0.3); 
     vec3 k_d = planetMaterial.diffuseColor;
-    vec3 k_s = vec3(1.0)*planetMaterial.specularFactor;
-    float shininess = 10.;
+    vec3 k_s = vec3(0.8)*planetMaterial.specularFactor;
+    float shininess = 2.;
 
     // vec3 col = vec3(p.z, pow(p.z, 2.0), pow(p.z, 3.0));
+
     vec3 col = PhongIllumination(k_a, k_d, k_s, p, ro, shininess);
+
+
     gl_FragColor = vec4(col, 1.0);
 }
