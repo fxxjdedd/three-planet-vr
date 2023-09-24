@@ -4,9 +4,9 @@ precision highp sampler3D;
 #define Pi 3.14159265359
 #define RAY_MARCHING_STEPS 25.
 #define RAY_MARCHING_MAX_DIST 100.
-#define EPSILON 0.001
+#define EPSILON 0.003
 #define OCTAVES 6
-#define t uTime * 0.8
+#define t uTime * 0.1
 
 // defines for planet colors
 #define OCEAN_COLOR vec3(0.02, 0.12, 0.3)
@@ -23,6 +23,19 @@ uniform sampler3D map;
 // https://stackoverflow.com/questions/34627576/why-did-glsl-change-varying-to-in-out
 in vec2 st;
 
+#define ROTATION_SPEED -.1
+#define PLANET_ROTATION rotateY(uTime * ROTATION_SPEED)
+
+mat3 rotateY(float angle) {
+  float c = cos(angle);
+  float s = sin(angle);
+  return mat3(
+    vec3(c, 0, s),
+    vec3(0, 1, 0),
+    vec3(-s, 0, c)
+  );
+}
+
 struct PlanetMaterial {
     vec3 diffuseColor;
     float specularFactor;
@@ -34,7 +47,6 @@ float Noise(vec3 p) {
 }
 
 // https://thebookofshaders.com/13/
-
 float FBM(in vec3 p) {
     float value = 0.0;
     float amplitude = 0.5;
@@ -46,16 +58,13 @@ float FBM(in vec3 p) {
         frequency *= 2.0;
         amplitude *= 0.5;
     }
-    // value /= normalization;
-    // value = value * 0.8 + 0.1;
-    // value = pow(value, 3.0);
     return value;
 }
 
 float SDSphere(vec3 p, float r) {
-    // r += FBM(p);
     return length(p - vec3(uPlanetOrigin, 0.)) - r;
 }
+
 
 float RayMarching(vec3 ro, vec3 rd) {
     float d = 0.; // marching dist
@@ -73,17 +82,16 @@ float RayMarching(vec3 ro, vec3 rd) {
     return RAY_MARCHING_MAX_DIST; // return max dist if exceed RAY_MARCHING_STEPS
 }
 
-float DeltaDist(vec3 p1, vec3 p2) {
-    float r1 = uPlanetRadius + FBM(p1);
-    float r2 = uPlanetRadius + FBM(p2);
-    return SDSphere(p1, r1) - SDSphere(p2, r2);
+float PlanetDist(vec3 p) {
+    float r = uPlanetRadius + FBM(p);
+    return SDSphere(p, r);
 }
 
 vec3 EstimateNormal(vec3 p) {
     return normalize(vec3(
-        DeltaDist(vec3(p.x + EPSILON, p.y, p.z), vec3(p.x - EPSILON, p.y, p.z)),
-        DeltaDist(vec3(p.x, p.y + EPSILON, p.z), vec3(p.x, p.y - EPSILON, p.z)),
-        DeltaDist(vec3(p.x, p.y, p.z + EPSILON), vec3(p.x, p.y, p.z - EPSILON))
+        PlanetDist(vec3(p.x + EPSILON, p.y, p.z)) - PlanetDist(vec3(p.x - EPSILON, p.y, p.z)),
+        PlanetDist(vec3(p.x, p.y + EPSILON, p.z)) - PlanetDist(vec3(p.x, p.y - EPSILON, p.z)),
+        PlanetDist(vec3(p.x, p.y, p.z + EPSILON)) - PlanetDist(vec3(p.x, p.y, p.z - EPSILON))
     ));
 }
 
@@ -109,15 +117,9 @@ vec3 PhongContrib(vec3 k_d, vec3 k_s, vec3 p, vec3 lightPos, vec3 eyePos, vec3 l
 vec3 PhongIllumination(vec3 k_a, vec3 k_d, vec3 k_s, vec3 p, vec3 eyePos, float shininess) {
     vec3 ambientLight = 0.5 * vec3(1., 1., 1.);
     vec3 color = ambientLight * k_a;
-    vec3 lightPos = 5.0 * vec3(sin(t), 0.0, cos(t));
-    // vec3 lightPos = 5.0 * vec3(0.0, 5.0, 1.0);
-    float rad = (90. + 60.) / 180. * Pi;
-    mat2 rotate = mat2(
-        vec2(cos(rad), sin(rad)),
-        vec2(-sin(rad), cos(rad))
-    );
-    lightPos.xy = rotate * lightPos.xy;
-
+    // fbm based color will be wired if we rotate light
+    // vec3 lightPos = 5.0 * vec3(sin(t), 0.0, cos(t));
+    vec3 lightPos = vec3(10.0, 10.0, 0.0);
     vec3 lightIntensity = vec3(0.4, 0.4, 0.4);
     color += PhongContrib(k_d, k_s, p, lightPos, eyePos, lightIntensity, shininess);
     return color;
@@ -131,7 +133,6 @@ PlanetMaterial Planet(vec3 p) {
     float specularFactor = smoothstep(0.55, 0.5, fbm);
 
     return PlanetMaterial(color, specularFactor);
-    // return PlanetMaterial(vec3(1.0), 1.0);
 }
 
 void main() {
@@ -146,6 +147,7 @@ void main() {
     }
 
     vec3 p = ro + rd * dist;
+    p = rotateY(t * -1.) * p;
 
     PlanetMaterial planetMaterial = Planet(p);
 
