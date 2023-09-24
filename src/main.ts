@@ -1,8 +1,11 @@
 import { useShaderCanvas } from './useShaderCanvas';
 import fragment from './shader/fragment.glsl';
 import vertex from './shader/vertex.glsl';
+import { useNoiseTexture } from './useNoiseTexture';
 
 const canvas = document.querySelector('#shader-canvas') as HTMLCanvasElement;
+
+const noiseTexture = useNoiseTexture();
 
 const { startRenderLoop } = useShaderCanvas(canvas, {
     vertexShader: vertex,
@@ -10,6 +13,7 @@ const { startRenderLoop } = useShaderCanvas(canvas, {
     uniforms: {
         uPlanetOrigin: { value: [0, 0] },
         uPlanetRadius: { value: 0.5 },
+        map: { value: noiseTexture },
     },
 });
 

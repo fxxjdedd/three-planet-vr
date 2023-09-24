@@ -29,8 +29,10 @@ export function useShaderCanvas(canvas: HTMLCanvasElement, materialOptions?: Sha
 
     plane.setAttribute('position', planeVertex);
 
+    const now = Date.now() / 1000;
+
     const globalUniforms = {
-        uTime: { value: Date.now() / 1000 },
+        uTime: { value: now },
         uResolution: { value: [window.innerWidth, window.innerHeight] },
     };
     const shaderMaterial = new ShaderMaterial({
@@ -58,8 +60,7 @@ export function useShaderCanvas(canvas: HTMLCanvasElement, materialOptions?: Sha
     }
 
     function render() {
-        globalUniforms.uTime.value -= Date.now() / 1000;
-        globalUniforms.uTime.value *= -1;
+        globalUniforms.uTime.value = Date.now() / 1000 - now;
         renderer.render(scene, camera);
     }
 
