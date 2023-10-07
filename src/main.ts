@@ -13,6 +13,7 @@ const { startRenderLoop } = useShaderCanvas(canvas, {
     uniforms: {
         uPlanetOrigin: { value: [0, 0] },
         uPlanetRadius: { value: 0.5 }, // 3d-noise texture的范围是0-1，0.5的radius正合适，如果是1.0的radius就会有过多的uv-clamp
+        uAtmosphereColor: { value: [0.05, 0.3, 0.9] },
         map: { value: noiseTexture },
     },
 });

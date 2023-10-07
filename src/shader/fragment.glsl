@@ -7,9 +7,11 @@ precision highp sampler3D;
 #define EPSILON 0.0001 // TODO: RayMarching会产生圆环波纹，待处理
 #define OCTAVES 6
 #define t uTime * 0.1
+#define CAMERA_POSITION vec3(0., 0., 1.5)
+#define AtmosphereRadius uPlanetRadius + 0.1
 
 // defines for planet colors
-#define OCEAN_COLOR vec3(0.02, 0.12, 0.3)
+#define OCEAN_COLOR vec3(0.05, 0.15, 0.32)
 
 // global uniforms
 uniform float uTime;
@@ -18,6 +20,7 @@ uniform vec2 uResolution;
 // uniforms
 uniform vec2 uPlanetOrigin;
 uniform float uPlanetRadius;
+uniform vec3 uAtmosphereColor;
 uniform sampler3D map;
 
 // https://stackoverflow.com/questions/34627576/why-did-glsl-change-varying-to-in-out
@@ -134,30 +137,49 @@ PlanetMaterial Planet(vec3 p) {
     return PlanetMaterial(color, 0.5);
 }
 
+vec3 Atmosphere(vec3 ro, vec3 rd) {
+    vec3 origin = vec3(uPlanetOrigin, 0.0);
+    float distCameraToPlanetOrigin = length(CAMERA_POSITION - origin);
+    float distCameraToPlanetEdge = sqrt(distCameraToPlanetOrigin*distCameraToPlanetOrigin - uPlanetRadius*uPlanetRadius);
+    vec3 coordFromCenter = ro + rd*distCameraToPlanetEdge - origin;
+    float distFromEdge = abs(length(coordFromCenter) - uPlanetRadius);
+    float planetEdge = max(1.0 - distFromEdge, 0.0);
+    vec3 atmosphere = vec3(pow(planetEdge, 80.));
+    float planetMask = 1.0;
+    atmosphere += pow(planetEdge, 30.) * (1.5 - planetMask);
+    atmosphere += pow(planetEdge, 4.) * .02;
+    atmosphere += pow(planetEdge, 2.) * .1 * planetMask;
+    return atmosphere * uAtmosphereColor;
+}
+
 void main() {
     vec2 uv = st;
-    vec3 ro = vec3(0., 0., 1.5);
+    vec3 ro = CAMERA_POSITION;
     vec3 rd = vec3(uv.x, uv.y, -1.);
 
+    vec3 col;
     float dist = RayMarching(ro, rd);
-    if (dist >= RAY_MARCHING_MAX_DIST) {
-        gl_FragColor = vec4(vec3(0.0), 1.0);
-        return;
-    }
-
     vec3 p = ro + rd * dist;
     p = RotateY(t * -1.) * p;
 
-    PlanetMaterial planetMaterial = Planet(p);
+    if (dist >= RAY_MARCHING_MAX_DIST) {
+        col = vec3(0.0);
+    } else {
+        PlanetMaterial planetMaterial = Planet(p);
 
-    vec3 k_a = vec3(0.1); 
-    vec3 k_d = planetMaterial.diffuseColor;
-    vec3 k_s = vec3(1.0)*planetMaterial.specularFactor;
-    float shininess = 10.;
+        vec3 k_a = vec3(0.1); 
+        vec3 k_d = planetMaterial.diffuseColor;
+        vec3 k_s = vec3(1.0)*planetMaterial.specularFactor;
+        float shininess = 10.;
 
-    // vec3 col = vec3(p.z, pow(p.z, 2.0), pow(p.z, 3.0));
+        // vec3 col = vec3(p.z, pow(p.z, 2.0), pow(p.z, 3.0));
+        col = PhongIllumination(k_a, k_d, k_s, p, ro, shininess);
+    }
 
-    vec3 col = PhongIllumination(k_a, k_d, k_s, p, ro, shininess);
+    vec3 atmo = Atmosphere(ro, rd);
+    // col = mix(col, vec3(0.2, 0.4, 0.8), atmo);
+    // col = vec3(abs(0.0), 1.0, 1.0);
+    col += atmo;
 
     gl_FragColor = vec4(col, 1.0);
 }
