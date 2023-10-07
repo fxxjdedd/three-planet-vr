@@ -4,7 +4,7 @@ precision highp sampler3D;
 #define Pi 3.14159265359
 #define RAY_MARCHING_STEPS 25.
 #define RAY_MARCHING_MAX_DIST 100.
-#define EPSILON 0.003
+#define EPSILON 0.0001 // TODO: RayMarching会产生圆环波纹，待处理
 #define OCTAVES 6
 #define t uTime * 0.1
 
@@ -23,7 +23,7 @@ uniform sampler3D map;
 // https://stackoverflow.com/questions/34627576/why-did-glsl-change-varying-to-in-out
 in vec2 st;
 
-mat3 rotateY(float angle) {
+mat3 RotateY(float angle) {
   float c = cos(angle);
   float s = sin(angle);
   return mat3(
@@ -136,7 +136,7 @@ PlanetMaterial Planet(vec3 p) {
 
 void main() {
     vec2 uv = st;
-    vec3 ro = vec3(0., 0., 5.);
+    vec3 ro = vec3(0., 0., 1.5);
     vec3 rd = vec3(uv.x, uv.y, -1.);
 
     float dist = RayMarching(ro, rd);
@@ -146,7 +146,7 @@ void main() {
     }
 
     vec3 p = ro + rd * dist;
-    p = rotateY(t * -1.) * p;
+    p = RotateY(t * -1.) * p;
 
     PlanetMaterial planetMaterial = Planet(p);
 
