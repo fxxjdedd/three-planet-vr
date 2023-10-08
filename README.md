@@ -2,4 +2,4 @@
 
 still learning and still in progress.
 
-![](public/planet-v0.gif)
+![](public/planet-v1.gif)
